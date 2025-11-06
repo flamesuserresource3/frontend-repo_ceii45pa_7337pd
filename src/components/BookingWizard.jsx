@@ -1,325 +1,114 @@
-import React, { useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Clock, MapPin, CreditCard, Coins, CheckCircle } from 'lucide-react';
+import { useState } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 
-const steps = [
-  'Select Destination',
-  'Date & Time',
-  'Seats',
-  'Passengers',
-  'Payment',
-  'Confirm',
-];
-
-function ProgressBar({ step }) {
-  const pct = (step / (steps.length - 1)) * 100;
-  return (
-    <div className="relative h-2 w-full rounded-full bg-white/10">
-      <div
-        className="absolute left-0 top-0 h-2 rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-400"
-        style={{ width: `${pct}%` }}
-      />
-    </div>
-  );
-}
-
-function SeatGrid({ selected, onToggle }) {
-  const rows = 5;
-  const cols = 8;
-  const seats = useMemo(() => {
-    return Array.from({ length: rows }, (_, r) =>
-      Array.from({ length: cols }, (_, c) => `${String.fromCharCode(65 + r)}${c + 1}`)
-    );
-  }, []);
-
-  return (
-    <div className="mt-4 grid grid-cols-8 gap-2">
-      {seats.flat().map((s) => {
-        const isSelected = selected.includes(s);
-        const isDisabled = s.endsWith('1') && s.startsWith('C'); // sample taken seat
-        return (
-          <button
-            key={s}
-            disabled={isDisabled}
-            onClick={() => onToggle(s)}
-            className={`aspect-square rounded-lg text-xs font-medium transition ${
-              isDisabled
-                ? 'bg-slate-700/50 text-slate-500 line-through'
-                : isSelected
-                ? 'bg-gradient-to-br from-cyan-500 to-fuchsia-500 text-white shadow-lg shadow-cyan-500/20'
-                : 'bg-white/5 text-white hover:bg-white/10'
-            }`}
-          >
-            {s}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-export default function BookingWizard() {
-  const [step, setStep] = useState(0);
-  const [destination, setDestination] = useState('Neo City Arena');
-  const [date, setDate] = useState('2025-12-20');
-  const [time, setTime] = useState('19:30');
-  const [seats, setSeats] = useState([]);
-  const [passengers, setPassengers] = useState([{ name: '', age: '', id: '' }]);
+export default function BookingWizard({ preset }) {
+  const [step, setStep] = useState(1);
+  const [from, setFrom] = useState(preset?.from || '');
+  const [to, setTo] = useState(preset?.to || '');
+  const [date, setDate] = useState(preset?.date || '');
+  const [passengers, setPassengers] = useState([{ name: '', seat: '' }]);
   const [payment, setPayment] = useState('card');
-  const [verifying, setVerifying] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
   const [txHash, setTxHash] = useState('');
 
-  const goNext = async () => {
-    if (step === steps.length - 1) return;
-    if (step === steps.length - 2) {
-      // simulate payment + blockchain verification
-      setVerifying(true);
-      setTimeout(() => {
-        setVerifying(false);
-        setTxHash('0x9f3a...b42c');
-        setStep(step + 1);
-      }, 1600);
-      return;
-    }
-    setStep(step + 1);
-  };
-  const goBack = () => setStep((s) => Math.max(0, s - 1));
+  const next = () => setStep((s) => Math.min(5, s + 1));
+  const prev = () => setStep((s) => Math.max(1, s - 1));
 
-  const toggleSeat = (s) => {
-    setSeats((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
+  const confirm = () => {
+    setConfirmed(true);
+    // mock tx hash
+    const hash = '0x' + Math.random().toString(16).slice(2).padEnd(64, '0');
+    setTxHash(hash);
+    setStep(5);
   };
-
-  const updatePassenger = (i, key, value) => {
-    setPassengers((prev) => prev.map((p, idx) => (idx === i ? { ...p, [key]: value } : p)));
-  };
-
-  const addPassenger = () => setPassengers((p) => [...p, { name: '', age: '', id: '' }]);
 
   return (
-    <section id="booking" className="mx-auto max-w-7xl px-6 py-16">
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-semibold text-white">Book Tickets</h2>
-        <span className="text-sm text-slate-300">Step {step + 1} of {steps.length}</span>
-      </div>
-
-      <ProgressBar step={step} />
-
-      <div className="mt-8 grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={step}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -16 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-6"
-              >
-                {step === 0 && (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="flex flex-col gap-2">
-                      <span className="text-sm text-slate-300">Event / Route / Destination</span>
-                      <div className="relative">
-                        <input
-                          value={destination}
-                          onChange={(e) => setDestination(e.target.value)}
-                          className="w-full rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                          placeholder="e.g. Neo City Arena"
-                        />
-                        <MapPin className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                      </div>
-                    </label>
-                  </div>
-                )}
-
-                {step === 1 && (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="flex flex-col gap-2">
-                      <span className="text-sm text-slate-300">Choose Date</span>
-                      <div className="relative">
-                        <input
-                          type="date"
-                          value={date}
-                          onChange={(e) => setDate(e.target.value)}
-                          className="w-full rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                        />
-                        <Calendar className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                      </div>
-                    </label>
-                    <label className="flex flex-col gap-2">
-                      <span className="text-sm text-slate-300">Choose Time</span>
-                      <div className="relative">
-                        <input
-                          type="time"
-                          value={time}
-                          onChange={(e) => setTime(e.target.value)}
-                          className="w-full rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                        />
-                        <Clock className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                      </div>
-                    </label>
-                  </div>
-                )}
-
-                {step === 2 && (
-                  <div>
-                    <p className="text-sm text-slate-300">Select Seats</p>
-                    <SeatGrid selected={seats} onToggle={toggleSeat} />
-                    <p className="mt-3 text-xs text-slate-400">Note: Some seats are pre-filled to simulate availability.</p>
-                  </div>
-                )}
-
-                {step === 3 && (
-                  <div className="space-y-4">
-                    {passengers.map((p, i) => (
-                      <div key={i} className="grid gap-3 sm:grid-cols-3">
-                        <input
-                          value={p.name}
-                          onChange={(e) => updatePassenger(i, 'name', e.target.value)}
-                          placeholder="Full Name"
-                          className="rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                        />
-                        <input
-                          value={p.age}
-                          onChange={(e) => updatePassenger(i, 'age', e.target.value)}
-                          placeholder="Age"
-                          className="rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                        />
-                        <input
-                          value={p.id}
-                          onChange={(e) => updatePassenger(i, 'id', e.target.value)}
-                          placeholder="ID / Passport"
-                          className="rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                        />
-                      </div>
-                    ))}
-                    <button
-                      onClick={addPassenger}
-                      className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"
-                    >
-                      + Add Passenger
-                    </button>
-                  </div>
-                )}
-
-                {step === 4 && (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <button
-                      onClick={() => setPayment('card')}
-                      className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left ${
-                        payment === 'card'
-                          ? 'border-cyan-400/50 bg-cyan-500/10'
-                          : 'border-white/10 bg-white/5 hover:bg-white/10'
-                      }`}
-                    >
-                      <CreditCard className="h-5 w-5" />
-                      <div>
-                        <div className="text-sm font-medium">Pay with Card</div>
-                        <div className="text-xs text-slate-400">Visa, Mastercard, AmEx</div>
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => setPayment('crypto')}
-                      className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left ${
-                        payment === 'crypto'
-                          ? 'border-fuchsia-400/50 bg-fuchsia-500/10'
-                          : 'border-white/10 bg-white/5 hover:bg-white/10'
-                      }`}
-                    >
-                      <Coins className="h-5 w-5" />
-                      <div>
-                        <div className="text-sm font-medium">Pay with Crypto</div>
-                        <div className="text-xs text-slate-400">ETH, USDC, more</div>
-                      </div>
-                    </button>
-                  </div>
-                )}
-
-                {step === 5 && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-slate-300">
-                      <CheckCircle className="h-5 w-5 text-emerald-400" />
-                      Review & Confirm
-                    </div>
-                    <ul className="text-sm text-slate-300">
-                      <li><span className="text-slate-400">Destination:</span> {destination}</li>
-                      <li><span className="text-slate-400">Date:</span> {date} <span className="text-slate-400">Time:</span> {time}</li>
-                      <li><span className="text-slate-400">Seats:</span> {seats.join(', ') || 'None'}</li>
-                      <li><span className="text-slate-400">Passengers:</span> {passengers.length}</li>
-                      <li><span className="text-slate-400">Payment:</span> {payment === 'card' ? 'Card' : 'Crypto'}</li>
-                    </ul>
-                    {txHash && (
-                      <div className="mt-3 rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3 text-emerald-200">
-                        Blockchain verified. Tx Hash: <span className="font-mono">{txHash}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            </AnimatePresence>
-
-            <div className="mt-8 flex items-center justify-between">
-              <button
-                onClick={goBack}
-                disabled={step === 0 || verifying}
-                className="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm text-white/90 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Back
-              </button>
-              <button
-                onClick={goNext}
-                disabled={verifying}
-                className="rounded-full bg-gradient-to-r from-cyan-500 to-fuchsia-500 px-6 py-2 text-sm font-medium text-white shadow-lg shadow-cyan-500/20 hover:scale-[1.01] disabled:cursor-wait disabled:opacity-60"
-              >
-                {step === steps.length - 2 ? (verifying ? 'Blockchain Verification…' : 'Pay & Verify') : step === steps.length - 1 ? 'Done' : 'Next'}
-              </button>
-            </div>
-
-            <AnimatePresence>
-              {verifying && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="mt-6 rounded-xl border border-cyan-400/30 bg-cyan-500/10 p-4 text-cyan-100"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-4 w-4 animate-ping rounded-full bg-cyan-400" />
-                    Blockchain Verification in Progress
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <h3 className="mb-3 text-sm font-semibold text-white">Booking Summary</h3>
-            <ul className="space-y-2 text-sm text-slate-300">
-              <li className="flex items-center justify-between"><span>Destination</span><span>{destination}</span></li>
-              <li className="flex items-center justify-between"><span>Date</span><span>{date}</span></li>
-              <li className="flex items-center justify-between"><span>Time</span><span>{time}</span></li>
-              <li className="flex items-center justify-between"><span>Seats</span><span>{seats.length}</span></li>
-              <li className="flex items-center justify-between"><span>Passengers</span><span>{passengers.length}</span></li>
-              <li className="flex items-center justify-between"><span>Payment</span><span className="capitalize">{payment}</span></li>
-            </ul>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-cyan-500/10 to-fuchsia-500/10 p-5">
-            <h3 className="mb-2 text-sm font-semibold text-white">Status</h3>
-            <p className="text-sm text-slate-300">
-              {verifying ? 'Verifying on-chain…' : txHash ? 'Verified on-chain' : 'Awaiting payment'}
-            </p>
-            {txHash && (
-              <a
-                href="#"
-                className="mt-2 inline-block text-xs text-cyan-300 underline"
-              >
-                View on explorer
-              </a>
+    <section id="booking" className="py-14">
+      <div className="max-w-6xl mx-auto px-4">
+        <h2 className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">Book your trip</h2>
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
+            {step === 1 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs text-gray-500 dark:text-gray-400">From</label>
+                  <input value={from} onChange={(e)=>setFrom(e.target.value)} placeholder="City or Venue" className="mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 dark:text-gray-400">To</label>
+                  <input value={to} onChange={(e)=>setTo(e.target.value)} placeholder="City or Venue" className="mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 dark:text-gray-400">Date</label>
+                  <input type="date" value={date} onChange={(e)=>setDate(e.target.value)} className="mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-sm" />
+                </div>
+              </div>
             )}
+
+            {step === 2 && (
+              <div>
+                <h3 className="font-medium text-gray-900 dark:text-white">Passengers</h3>
+                <div className="mt-3 space-y-3">
+                  {passengers.map((p, i) => (
+                    <div key={i} className="grid grid-cols-2 gap-3">
+                      <input value={p.name} onChange={(e)=>{
+                        const next = [...passengers];
+                        next[i].name = e.target.value;
+                        setPassengers(next);
+                      }} placeholder={`Passenger ${i+1} Name`} className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-sm" />
+                      <input value={p.seat} onChange={(e)=>{
+                        const next = [...passengers];
+                        next[i].seat = e.target.value;
+                        setPassengers(next);
+                      }} placeholder="Seat (e.g., 12A)" className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-sm" />
+                    </div>
+                  ))}
+                  <button onClick={()=>setPassengers([...passengers, { name: '', seat: '' }])} className="text-sm px-3 py-2 rounded-md border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800">Add passenger</button>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div>
+                <h3 className="font-medium text-gray-900 dark:text-white">Payment</h3>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <button onClick={()=>setPayment('card')} className={`px-3 py-3 rounded-lg border ${payment==='card'?'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30':'border-gray-200 dark:border-gray-800'}`}>Card</button>
+                  <button onClick={()=>setPayment('crypto')} className={`px-3 py-3 rounded-lg border ${payment==='crypto'?'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30':'border-gray-200 dark:border-gray-800'}`}>Crypto</button>
+                </div>
+              </div>
+            )}
+
+            {step === 4 && (
+              <div className="text-center py-10">
+                <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto" />
+                <p className="mt-2 text-gray-700 dark:text-gray-300">Ready to confirm. Your booking will be verified on-chain.</p>
+              </div>
+            )}
+
+            {step === 5 && (
+              <div className="text-center py-10">
+                <p className="text-sm text-gray-500">Transaction Hash</p>
+                <p className="font-mono text-xs md:text-sm break-all text-indigo-600">{txHash}</p>
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-between">
+              <button disabled={step===1} onClick={prev} className="px-4 py-2 rounded-md border border-gray-200 dark:border-gray-800 disabled:opacity-50">Back</button>
+              {step < 4 && <button onClick={next} className="px-4 py-2 rounded-md bg-indigo-600 text-white">Next</button>}
+              {step === 4 && <button onClick={confirm} className="px-4 py-2 rounded-md bg-green-600 text-white">Confirm</button>}
+            </div>
           </div>
+
+          <aside className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
+            <h3 className="font-medium text-gray-900 dark:text-white">Summary</h3>
+            <dl className="mt-3 space-y-1 text-sm">
+              <div className="flex justify-between"><dt className="text-gray-500">From</dt><dd className="text-gray-900 dark:text-gray-100">{from || '—'}</dd></div>
+              <div className="flex justify-between"><dt className="text-gray-500">To</dt><dd className="text-gray-900 dark:text-gray-100">{to || '—'}</dd></div>
+              <div className="flex justify-between"><dt className="text-gray-500">Date</dt><dd className="text-gray-900 dark:text-gray-100">{date || '—'}</dd></div>
+              <div className="flex justify-between"><dt className="text-gray-500">Passengers</dt><dd className="text-gray-900 dark:text-gray-100">{passengers.length}</dd></div>
+              <div className="flex justify-between"><dt className="text-gray-500">Payment</dt><dd className="text-gray-900 dark:text-gray-100 capitalize">{payment}</dd></div>
+            </dl>
+          </aside>
         </div>
       </div>
     </section>
